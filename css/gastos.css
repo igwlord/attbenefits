@@ -15,6 +15,60 @@
   gap: var(--gap-md);
 }
 
+/* Analytics row: chart 3fr left | desglose + top locales 2fr right */
+.gastos__analytics-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--gap-md);
+  align-items: start;
+}
+
+.gastos__analytics-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+
+@media (max-width: 900px) {
+  .gastos__analytics-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Budget card header: month selector + "+ Nuevo Gasto" button */
+.gastos__budget-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-bottom: var(--gap);
+}
+.gastos__budget-header::before {
+  content: '';
+}
+
+.gastos__nuevo-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  justify-self: end;
+  transition: opacity var(--transition), box-shadow var(--transition);
+}
+
+.gastos__nuevo-btn:hover {
+  opacity: 0.9;
+  box-shadow: var(--shadow-accent);
+}
+
 
 /* ---------- Card Base ---------- */
 
@@ -80,7 +134,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--gap-md);
-  margin-bottom: var(--gap-md);
+  margin-bottom: 0;
+  justify-self: center;
 }
 
 .gastos__month-btn {
@@ -146,8 +201,9 @@
 
 .gastos__progress-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   border-radius: var(--radius-full);
   overflow: hidden;
   position: relative;
@@ -161,18 +217,18 @@
 }
 
 .gastos__progress-fill--green {
-  background: linear-gradient(90deg, #22c55e, #4ade80);
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+  background: linear-gradient(90deg, #00a8e0, #0056b6);
+  box-shadow: 0 0 12px rgba(0, 168, 224, 0.4);
 }
 
 .gastos__progress-fill--yellow {
   background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
 .gastos__progress-fill--red {
   background: linear-gradient(90deg, #ef4444, #f87171);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
 }
 
 
@@ -675,10 +731,10 @@
 
 .gastos__totals-bar-wrap {
   flex: 1;
-  height: 24px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   border-radius: var(--radius-full);
-  overflow: hidden;
   position: relative;
 }
 
@@ -686,19 +742,17 @@
   height: 100%;
   border-radius: var(--radius-full);
   transition: width 0.6s var(--ease);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 8px;
   min-width: 0;
 }
 
 .gastos__totals-bar--gastro {
-  background: linear-gradient(90deg, var(--gastro), #ff8f66);
+  background: linear-gradient(90deg, var(--gastro, #ff6b35), #ff8f66);
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.3);
 }
 
 .gastos__totals-bar--compras {
-  background: linear-gradient(90deg, var(--compras), #4ade80);
+  background: linear-gradient(90deg, var(--compras, #10b981), #4ade80);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 .gastos__totals-amount {
@@ -805,6 +859,11 @@
     font-size: var(--text-sm);
   }
 
+  .gastos__select option {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
   .gastos__input-prefix {
     padding: 0 10px;
     font-size: var(--text-sm);
@@ -871,12 +930,12 @@
   }
 
   .gastos__totals-row {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .gastos__totals-label {
-    min-width: 100%;
-    margin-bottom: var(--gap-xs);
+    min-width: 90px;
+    margin-bottom: 0;
   }
 
   .gastos__totals-extra {
@@ -902,6 +961,27 @@
 @media (max-width: 480px) {
   .gastos__card {
     padding: var(--gap);
+  }
+
+  .gastos__budget-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-md);
+  }
+
+  .gastos__budget-header::before {
+    display: none;
+  }
+
+  .gastos__nuevo-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .gastos__month-label {
+    min-width: 120px;
+    font-size: var(--text-lg);
   }
 
   .gastos__submit {
@@ -941,6 +1021,15 @@
   .gastos__select {
     padding: 8px 10px;
     font-size: var(--text-sm);
+  }
+  
+  .gastos__drawer {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    border: none;
   }
 
   .gastos__input-prefix {
@@ -1145,4 +1234,480 @@
 [data-theme="light"] .gastos__ac-item {
   border-color: rgba(0, 0, 0, 0.06);
   color: var(--text);
+}
+
+
+/* ---------- Historial Chart Card ---------- */
+
+.gastos__historial {
+  background: linear-gradient(135deg, rgba(25,146,255,0.04) 0%, var(--surface) 70%);
+}
+
+/* CSS bar chart — fully responsive, no SVG */
+.gastos__chart-bars {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.gastos__chart-col {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast);
+}
+
+.gastos__chart-col.active {
+  opacity: 1;
+}
+
+.gastos__chart-col-total {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium); /* Softened from semibold */
+  color: var(--text2);
+  line-height: 1;
+  min-height: 14px;
+  opacity: 0; /* Hide by default, reveal on hover */
+  transform: translateY(4px);
+  transition: all var(--transition-fast);
+}
+
+.gastos__chart-col:hover .gastos__chart-col-total,
+.gastos__chart-col.active .gastos__chart-col-total {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gastos__chart-col.active .gastos__chart-col-total {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.gastos__chart-col-inner {
+  width: 100%;
+  max-width: 24px; /* Ensure columns aren't excessively wide on 12 month view */
+  background: rgba(255, 255, 255, 0.02); /* Ghost track */
+  border-radius: 4px;
+  position: relative;
+}
+
+.gastos__chart-col-gastro {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--gastro, #ff6b35);
+  border-radius: 4px; /* Fully rounded components */
+}
+
+.gastos__chart-col-compras {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--compras, #10b981);
+  border-radius: 4px;
+}
+
+/* Tooltip is removed because total shows at the top */
+
+.gastos__chart-col-empty {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  min-height: 3px;
+  background: rgba(255, 255, 255, 0.08); /* More subtle empty indicator */
+  border-radius: 3px;
+}
+
+.gastos__chart-col-label {
+  font-size: 0.625rem;
+  color: var(--text3);
+  text-align: center;
+  line-height: 1;
+}
+
+.gastos__chart-col.active .gastos__chart-col-label {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.gastos__chart-col-year {
+  font-size: 0.5625rem;
+  color: var(--text3);
+  text-align: center;
+  line-height: 1;
+  min-height: 10px;
+}
+
+.gastos__chart-legend {
+  display: flex;
+  gap: var(--gap-md);
+  margin-top: var(--gap-sm);
+  font-size: var(--text-xs);
+  color: var(--text2);
+  align-items: center;
+  justify-content: flex-end; /* Align legend to the right */
+}
+
+.gastos__chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.gastos__chart-legend-dot.gastro-dot { background: var(--gastro, #ff6b35); }
+.gastos__chart-legend-dot.compras-dot { background: var(--compras, #10b981); }
+
+.gastos__chart-subtitle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text2);
+  margin: var(--gap-md) 0 var(--gap-sm);
+}
+
+.gastos__locales-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gastos__locale-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.gastos__locale-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08); /* More subtle hover */
+}
+
+.gastos__locale-name {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.gastos__locale-amount {
+  font-size: var(--text-sm);
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.gastos__chart-empty {
+  font-size: var(--text-sm);
+  color: var(--text3);
+  text-align: center;
+  padding: var(--gap-md) 0;
+  margin: 0;
+}
+
+/* ---------- Historial Chart — Wrap, Grid & Tooltip ---------- */
+
+.gastos__chart-wrap {
+  position: relative;
+  /* Add subtle background for the grid area */
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.01) 100%);
+  border-radius: var(--radius);
+  padding-top: 8px;
+}
+
+/* Grid covers exactly the bar area (BAR_H=80px), offset by label area (26px) */
+.gastos__chart-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  height: 180px;
+  pointer-events: none;
+}
+
+.gastos__chart-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.04); /* Subtler grid lines */
+}
+
+/* Hover: inactive columns become fully opaque */
+.gastos__chart-col:hover {
+  opacity: 1;
+}
+
+/* Hover: bar segments brighten */
+.gastos__chart-col:hover .gastos__chart-col-gastro,
+.gastos__chart-col:hover .gastos__chart-col-compras {
+  filter: brightness(1.15);
+}
+
+/* Tooltip: floats above inner bar area on hover */
+.gastos__bar-tooltip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -110%);
+  background: var(--surface3);
+  color: var(--text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hover);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  z-index: 10;
+}
+
+.gastos__chart-col:hover .gastos__bar-tooltip {
+  opacity: 1;
+}
+
+/* ---------- Drawer ---------- */
+
+.gastos__drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+.gastos__drawer-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.gastos__drawer {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--transition), opacity var(--transition);
+  overflow-y: auto;
+}
+
+.gastos__drawer.open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  pointer-events: all;
+}
+
+.gastos__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-md);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface2);
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.gastos__drawer-title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.gastos__drawer-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.gastos__drawer-close:hover {
+  background: var(--glass-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.gastos__drawer-body {
+  padding: var(--gap-md);
+  flex: 1;
+}
+
+/* ---------- Transaction Table ---------- */
+
+.gastos__tx-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gastos__tx-table th {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 var(--gap-sm) var(--gap-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.gastos__tx-table th.gastos__tx-th-amount {
+  text-align: right;
+}
+
+.gastos__tx-row {
+  transition: background var(--transition);
+}
+
+.gastos__tx-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.gastos__tx-row td {
+  padding: 10px var(--gap-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  vertical-align: middle;
+}
+
+.gastos__tx-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.gastos__tx-icon--gastro  { background: var(--gastro-bg); }
+.gastos__tx-icon--compras { background: var(--compras-bg); }
+
+.gastos__tx-commerce {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.gastos__tx-rubro-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.gastos__tx-rubro-badge--gastro  { background: var(--gastro-bg);  color: var(--gastro); }
+.gastos__tx-rubro-badge--compras { background: var(--compras-bg); color: var(--compras); }
+
+.gastos__tx-date {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+.gastos__tx-amount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+  display: block;
+}
+
+.gastos__tx-delete {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  transition: opacity var(--transition), background var(--transition);
+}
+
+.gastos__tx-row:hover .gastos__tx-delete {
+  opacity: 1;
+}
+
+.gastos__tx-delete:hover {
+  background: var(--danger-bg);
+}
+
+/* Confirm delete inline in table */
+.gastos__tx-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  white-space: nowrap;
+}
+
+.gastos__tx-confirm-yes {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  padding: 3px 8px;
+}
+
+.gastos__tx-confirm-no {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  padding: 3px 8px;
+}
+
+@media (max-width: 600px) {
+  .gastos__tx-col-rubro,
+  .gastos__tx-col-fecha { display: none; }
 }

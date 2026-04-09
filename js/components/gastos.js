@@ -216,6 +216,319 @@ window.GastosComponent = (() => {
     return window.AppStore.getRemainingBudget(_currentYear, _currentMonth);
   }
 
+  // ── Historial Chart ──────────────────────────────────────
+
+  function renderHistorialChart() {
+    // Mostrar los 12 meses fijos para mantener la grilla consistente
+    var months = [];
+    for (var hi = 1; hi <= 12; hi++) {
+      months.push({ year: _currentYear, month: hi });
+    }
+
+    // Aggregate gastro/compras totals per month
+    var data = months.map(function(mo) {
+      var exps = window.AppStore.getMonthExpenses(mo.year, mo.month);
+      var gastro = 0, compras = 0;
+      for (var xi = 0; xi < exps.length; xi++) {
+        if (exps[xi].rubro === 0) gastro += exps[xi].amount || 0;
+        else compras += exps[xi].amount || 0;
+      }
+      return { year: mo.year, month: mo.month, gastro: gastro, compras: compras, total: gastro + compras };
+    });
+
+    var maxVal = 0;
+    for (var di = 0; di < data.length; di++) {
+      if (data[di].total > maxVal) maxVal = data[di].total;
+    }
+    if (maxVal === 0) maxVal = 1;
+
+    var BAR_H = 180; // px — fixed bar area height
+
+    // Build CSS bar columns
+    var barsHtml = '';
+    for (var bi = 0; bi < data.length; bi++) {
+      var d = data[bi];
+      var isCurrent = (d.year === _currentYear && d.month === _currentMonth);
+
+      var gastroH  = d.gastro  > 0 ? Math.max(3, Math.round((d.gastro  / maxVal) * BAR_H)) : 0;
+      var comprasH = d.compras > 0 ? Math.max(3, Math.round((d.compras / maxVal) * BAR_H)) : 0;
+
+      var mLabel   = MONTH_NAMES_ES[d.month - 1].substring(0, 3);
+      var showYear = (bi === 0) || (d.year !== data[bi - 1].year);
+
+      var totalLabel = '';
+      if (isCurrent && d.total > 0) {
+        totalLabel = d.total >= 1000000
+          ? (d.total / 1000000).toFixed(1) + 'M'
+          : Math.round(d.total / 1000) + 'k';
+      }
+
+      barsHtml += '<div class="gastos__chart-col' + (isCurrent ? ' active' : '') + '">';
+      if (totalLabel) {
+        barsHtml += '<span class="gastos__chart-col-total">' + totalLabel + '</span>';
+      } else {
+        barsHtml += '<span class="gastos__chart-col-total" aria-hidden="true"></span>';
+      }
+      barsHtml += '<div class="gastos__chart-col-inner" style="height:' + BAR_H + 'px">';
+      if (d.total === 0) {
+        barsHtml += '<div class="gastos__chart-col-empty"></div>';
+      } else {
+        if (gastroH > 0) {
+          barsHtml += '<div class="gastos__chart-col-gastro" style="height:' + gastroH + 'px"></div>';
+        }
+        if (comprasH > 0) {
+          var yOffset = gastroH > 0 ? (gastroH + 2) : 0;
+          barsHtml += '<div class="gastos__chart-col-compras" style="height:' + comprasH + 'px;bottom:' + yOffset + 'px"></div>';
+        }
+      }
+      barsHtml += '</div>'; // end chart-col-inner
+      barsHtml += '<span class="gastos__chart-col-label">' + mLabel + '</span>';
+      if (showYear) {
+        barsHtml += '<span class="gastos__chart-col-year">' + d.year + '</span>';
+      } else {
+        barsHtml += '<span class="gastos__chart-col-year" aria-hidden="true"></span>';
+      }
+      barsHtml += '</div>'; // end chart-col
+    }
+
+    // Grid lines (3 reference lines at 25%, 50%, 75% of bar height)
+    var gridHtml = '<div class="gastos__chart-grid" aria-hidden="true">'
+      + '<div class="gastos__chart-gridline" style="bottom:75%"></div>'
+      + '<div class="gastos__chart-gridline" style="bottom:50%"></div>'
+      + '<div class="gastos__chart-gridline" style="bottom:25%"></div>'
+      + '</div>';
+
+    var html = '<div class="gastos__card gastos__historial">';
+    html += '<div class="gastos__card-title">Historial mensual</div>';
+    html += '<div class="gastos__chart-wrap">';
+    html += gridHtml;
+    html += '<div class="gastos__chart-bars">' + barsHtml + '</div>';
+    html += '</div>'; // end chart-wrap
+    html += '<div class="gastos__chart-legend">';
+    html += '<span class="gastos__chart-legend-dot gastro-dot"></span><span>Gastronom\u00eda</span>';
+    html += '<span class="gastos__chart-legend-dot compras-dot"></span><span>Compras</span>';
+    html += '</div>';
+    html += '</div>'; // end gastos__card
+    return html;
+  }
+
+  function renderTopLocales(year, month) {
+    var thisExps = window.AppStore.getMonthExpenses(year, month);
+    var locMap = {};
+    for (var li = 0; li < thisExps.length; li++) {
+      var le = thisExps[li];
+      var ln = ((le.commerce || 'Sin nombre') + '').trim();
+      locMap[ln] = (locMap[ln] || 0) + (le.amount || 0);
+    }
+    var topLocales = [];
+    var lKeys = Object.keys(locMap);
+    for (var lk = 0; lk < lKeys.length; lk++) {
+      topLocales.push({ name: lKeys[lk], total: locMap[lKeys[lk]] });
+    }
+    topLocales.sort(function(a, b) { return b.total - a.total; });
+    if (topLocales.length > 5) topLocales = topLocales.slice(0, 5);
+
+    var html = '<div class="gastos__card">';
+    html += '<div class="gastos__card-title">Top locales &mdash; ' + esc(MONTH_NAMES_ES[month - 1]) + '</div>';
+    if (topLocales.length > 0) {
+      html += '<div class="gastos__locales-list">';
+      for (var tl = 0; tl < topLocales.length; tl++) {
+        html += '<div class="gastos__locale-row">';
+        html += '<span class="gastos__locale-name">' + esc(topLocales[tl].name) + '</span>';
+        html += '<span class="gastos__locale-amount">' + fmt(topLocales[tl].total) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+    } else {
+      html += '<p class="gastos__chart-empty">Sin gastos en ' + esc(MONTH_NAMES_ES[month - 1]) + '</p>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderDesglose(gastroTotal, comprasTotal, gastroPct, comprasPct, totalAll) {
+    var html = '<div class="gastos__card">';
+    html += '<div class="gastos__card-title">Desglose por rubro</div>';
+    html += '<div class="gastos__totals">';
+
+    html += '<div class="gastos__totals-row">';
+    html += '  <span class="gastos__totals-label">' + t('gastronomia') + '</span>';
+    html += '  <div class="gastos__totals-bar-wrap">';
+    html += '    <div class="gastos__totals-bar gastos__totals-bar--gastro"';
+    html += '         style="width:' + (totalAll > 0 ? gastroPct.toFixed(1) : 0) + '%"></div></div>';
+    html += '  <span class="gastos__totals-amount">' + fmt(gastroTotal) + '</span>';
+    html += '  <span class="gastos__totals-pct">' + Math.round(gastroPct) + '%</span>';
+    html += '</div>';
+
+    html += '<div class="gastos__totals-row">';
+    html += '  <span class="gastos__totals-label">' + t('compras') + '</span>';
+    html += '  <div class="gastos__totals-bar-wrap">';
+    html += '    <div class="gastos__totals-bar gastos__totals-bar--compras"';
+    html += '         style="width:' + (totalAll > 0 ? comprasPct.toFixed(1) : 0) + '%"></div></div>';
+    html += '  <span class="gastos__totals-amount">' + fmt(comprasTotal) + '</span>';
+    html += '  <span class="gastos__totals-pct">' + Math.round(comprasPct) + '%</span>';
+    html += '</div>';
+
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderDrawer(formCategories) {
+    var html = '<div class="gastos__drawer-overlay" id="gastos-overlay"></div>';
+    html += '<div class="gastos__drawer" id="gastos-drawer">';
+    html += '<div class="gastos__drawer-header">';
+    html += '  <span class="gastos__drawer-title">Nuevo Gasto</span>';
+    html += '  <button class="gastos__drawer-close" id="gastos-drawer-close" aria-label="Cerrar">';
+    html += '    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">';
+    html += '      <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+    html += '    </svg>';
+    html += '  </button>';
+    html += '</div>';
+    html += '<div class="gastos__drawer-body">';
+    html += '<form class="gastos__form" id="gastos-form" autocomplete="off">';
+
+    html += '<div class="gastos__form-row">';
+    html += '<div class="gastos__field">';
+    html += '  <label class="gastos__label" for="gastos-commerce">' + t('comercio') + '</label>';
+    html += '  <div class="gastos__ac-wrap">';
+    html += '    <input class="gastos__input" type="text" id="gastos-commerce"';
+    html += '           placeholder="Nombre del comercio" autocomplete="off" required>';
+    html += '    <div class="gastos__ac-panel" id="gastos-ac-panel" hidden></div>';
+    html += '  </div>';
+    html += '</div>';
+    html += '<div class="gastos__field">';
+    html += '  <label class="gastos__label" for="gastos-amount">' + t('monto') + '</label>';
+    html += '  <div class="gastos__input-group">';
+    html += '    <span class="gastos__input-prefix">$</span>';
+    html += '    <input class="gastos__input" type="text" inputmode="numeric" id="gastos-amount"';
+    html += '           placeholder="0" required>';
+    html += '  </div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="gastos__field">';
+    html += '  <label class="gastos__label">' + t('rubro') + '</label>';
+    html += '  <div class="gastos__pills">';
+    html += '    <button type="button" class="gastos__pill gastos__pill--gastro' +
+      (_selectedFormRubro === 0 ? ' gastos__pill--active' : '') +
+      '" data-form-rubro="0">' + t('gastronomia') + '</button>';
+    html += '    <button type="button" class="gastos__pill gastos__pill--compras' +
+      (_selectedFormRubro === 1 ? ' gastos__pill--active' : '') +
+      '" data-form-rubro="1">' + t('compras') + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="gastos__form-row">';
+    html += '<div class="gastos__field">';
+    html += '  <label class="gastos__label" for="gastos-category">' + t('categorias') + '</label>';
+    html += '  <select class="gastos__select" id="gastos-category" required>';
+    html += '    <option value="">-- Seleccionar --</option>';
+    for (var c = 0; c < formCategories.length; c++) {
+      html += '<option value="' + formCategories[c].idx + '">' + esc(formCategories[c].name) + '</option>';
+    }
+    html += '  </select>';
+    html += '</div>';
+    html += '<div class="gastos__field">';
+    html += '  <label class="gastos__label" for="gastos-date">' + t('fecha') + '</label>';
+    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + todayStr() + '" required>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<button type="submit" class="gastos__submit">Registrar Gasto</button>';
+    html += '</form>';
+    html += '</div>'; // end drawer-body
+    html += '</div>'; // end drawer
+    return html;
+  }
+
+  function renderTransactionTable(filtered, filteredTotal) {
+    var RUBRO_NAMES = ['Gastronom\u00eda', 'Compras'];
+    var RUBRO_ICONS = ['\uD83C\uDF7D\uFE0F', '\uD83D\uDECD\uFE0F'];
+
+    var html = '<div class="gastos__card-title">';
+    html += esc(t('historial'));
+    html += '<div class="gastos__filter-pills">';
+    html += '<button class="gastos__pill gastos__pill--todos' +
+      (_filterRubro === -1 ? ' gastos__pill--active' : '') +
+      '" data-filter-rubro="-1">' + t('todos') + '</button>';
+    html += '<button class="gastos__pill gastos__pill--gastro' +
+      (_filterRubro === 0 ? ' gastos__pill--active' : '') +
+      '" data-filter-rubro="0">' + t('gastronomia') + '</button>';
+    html += '<button class="gastos__pill gastos__pill--compras' +
+      (_filterRubro === 1 ? ' gastos__pill--active' : '') +
+      '" data-filter-rubro="1">' + t('compras') + '</button>';
+    html += '</div>';
+    html += '<span class="gastos__filter-total">' + fmt(filteredTotal) + '</span>';
+    html += '<span class="gastos__count">' + filtered.length + ' ' + t('resultados') + '</span>';
+    html += '</div>';
+
+    if (filtered.length === 0) {
+      html += '<div class="gastos__empty">';
+      html += '  <div class="gastos__empty-icon">\uD83D\uDCCB</div>';
+      html += '  <div class="gastos__empty-text">No hay gastos registrados este mes.</div>';
+      html += '</div>';
+      return html;
+    }
+
+    html += '<div style="overflow-x:auto">';
+    html += '<table class="gastos__tx-table"><thead><tr>';
+    html += '<th></th>';
+    html += '<th>Comercio</th>';
+    html += '<th class="gastos__tx-col-rubro">Rubro</th>';
+    html += '<th class="gastos__tx-col-fecha">Fecha</th>';
+    html += '<th class="gastos__tx-th-amount">Monto</th>';
+    html += '<th></th>';
+    html += '</tr></thead><tbody>';
+
+    for (var j = 0; j < filtered.length; j++) {
+      var e = filtered[j];
+      var rc = e.rubro === 0 ? 'gastro' : 'compras';
+      var isConfirm = (_confirmDeleteId === e.id);
+
+      html += '<tr class="gastos__tx-row" data-id="' + esc(e.id) + '">';
+
+      // Icon
+      html += '<td><div class="gastos__tx-icon gastos__tx-icon--' + rc + '">';
+      html += RUBRO_ICONS[e.rubro] + '</div></td>';
+
+      // Commerce
+      html += '<td><div class="gastos__tx-commerce">' + esc(e.commerce || 'Sin nombre') + '</div></td>';
+
+      // Rubro badge
+      html += '<td class="gastos__tx-col-rubro">';
+      html += '<span class="gastos__tx-rubro-badge gastos__tx-rubro-badge--' + rc + '">';
+      html += RUBRO_NAMES[e.rubro] + '</span></td>';
+
+      // Date
+      html += '<td class="gastos__tx-col-fecha">';
+      html += '<span class="gastos__tx-date">' + esc(e.date || '') + '</span></td>';
+
+      // Amount
+      html += '<td><span class="gastos__tx-amount">' + fmt(e.amount) + '</span></td>';
+
+      // Delete / Confirm
+      html += '<td>';
+      if (isConfirm) {
+        html += '<div class="gastos__tx-confirm">';
+        html += '<button class="gastos__tx-confirm-yes" data-confirm-delete="' + esc(e.id) + '">Eliminar</button>';
+        html += '<button class="gastos__tx-confirm-no" data-cancel-delete="1">Cancelar</button>';
+        html += '</div>';
+      } else {
+        html += '<button class="gastos__tx-delete" data-delete-id="' + esc(e.id) + '" aria-label="Eliminar">';
+        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+        html += '<polyline points="3 6 5 6 21 6"/>';
+        html += '<path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>';
+        html += '</svg></button>';
+      }
+      html += '</td>';
+
+      html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
   // ── Render ───────────────────────────────────────────────
 
   function render() {
@@ -226,9 +539,7 @@ window.GastosComponent = (() => {
     var remaining = budget - spent;
     var pct = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
     var daysElapsed = getDaysElapsed(_currentYear, _currentMonth);
-    var daysInMonth = getDaysInMonth(_currentYear, _currentMonth);
     var avgPerDay = daysElapsed > 0 ? spent / daysElapsed : 0;
-    var projection = daysElapsed > 0 ? (spent / daysElapsed) * daysInMonth : 0;
 
     var barClass = pct < 70 ? 'green' : (pct < 90 ? 'yellow' : 'red');
 
@@ -265,9 +576,15 @@ window.GastosComponent = (() => {
 
     var html = '<div class="gastos">';
 
-    // ── 1. Budget Tracker ──────────────────────────
+    // ── Row 1: Budget Tracker + Nuevo Gasto button ──
     html += '<div class="gastos__card gastos__budget">';
+    html += '<div class="gastos__budget-header">';
     html += renderMonthSelector();
+    html += '<button class="gastos__nuevo-btn" id="gastos-nuevo-btn">';
+    html += '<svg width="14" height="14" viewBox="0 0 14 14" fill="none">';
+    html += '<path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+    html += '</svg> Nuevo Gasto</button>';
+    html += '</div>';
     html += '<div class="gastos__progress-wrap">';
     html += '  <div class="gastos__progress-labels">';
     html += '    <span class="gastos__progress-spent">' + fmt(spent) + '</span>';
@@ -278,150 +595,29 @@ window.GastosComponent = (() => {
     html += '         style="width:' + pct.toFixed(1) + '%"></div>';
     html += '  </div>';
     html += '</div>';
-
     html += '<div class="gastos__stats-row">';
     html += renderStat(fmt(spent), t('gastado'));
     html += renderStat(fmt(remaining), t('restante'));
     html += renderStat(fmt(Math.round(avgPerDay)), t('promedio_dia'));
-    html += renderStat(fmt(Math.round(projection)), 'Proy. mes');
     html += '</div>';
     html += '</div>'; // end budget card
 
-    // ── 2. Expense Form ────────────────────────────
+    // ── Row 2: Analytics (3fr chart | 2fr desglose + top locales) ──
+    html += '<div class="gastos__analytics-row">';
+    html += renderHistorialChart();
+    html += '<div class="gastos__analytics-right">';
+    html += renderDesglose(gastroTotal, comprasTotal, gastroPct, comprasPct, totalAll);
+    html += renderTopLocales(_currentYear, _currentMonth);
+    html += '</div>';
+    html += '</div>'; // end analytics row
+
+    // ── Row 3: Transaction table (full width) ──
     html += '<div class="gastos__card">';
-    html += '<div class="gastos__card-title">' + esc('Registrar Gasto') + '</div>';
-    html += '<form class="gastos__form" id="gastos-form" autocomplete="off">';
-
-    html += '<div class="gastos__form-row">';
-    // Comercio
-    html += '<div class="gastos__field">';
-    html += '  <label class="gastos__label" for="gastos-commerce">' + t('comercio') + '</label>';
-    html += '  <div class="gastos__ac-wrap">';
-    html += '    <input class="gastos__input" type="text" id="gastos-commerce"';
-    html += '           placeholder="Nombre del comercio" autocomplete="off" required>';
-    html += '    <div class="gastos__ac-panel" id="gastos-ac-panel" hidden></div>';
-    html += '  </div>';
-    html += '</div>';
-    // Monto
-    html += '<div class="gastos__field">';
-    html += '  <label class="gastos__label" for="gastos-amount">' + t('monto') + '</label>';
-    html += '  <div class="gastos__input-group">';
-    html += '    <span class="gastos__input-prefix">$</span>';
-    html += '    <input class="gastos__input" type="text" inputmode="numeric" id="gastos-amount"';
-    html += '           placeholder="0" required>';
-    html += '  </div>';
-    html += '</div>';
+    html += renderTransactionTable(filtered, filteredTotal);
     html += '</div>';
 
-    // Rubro pills
-    html += '<div class="gastos__field">';
-    html += '  <label class="gastos__label">' + t('rubro') + '</label>';
-    html += '  <div class="gastos__pills">';
-    html += '    <button type="button" class="gastos__pill gastos__pill--gastro' +
-      (_selectedFormRubro === 0 ? ' gastos__pill--active' : '') +
-      '" data-form-rubro="0">' + t('gastronomia') + '</button>';
-    html += '    <button type="button" class="gastos__pill gastos__pill--compras' +
-      (_selectedFormRubro === 1 ? ' gastos__pill--active' : '') +
-      '" data-form-rubro="1">' + t('compras') + '</button>';
-    html += '  </div>';
-    html += '</div>';
-
-    // Categoria dropdown
-    html += '<div class="gastos__form-row">';
-    html += '<div class="gastos__field">';
-    html += '  <label class="gastos__label" for="gastos-category">' + t('categorias') + '</label>';
-    html += '  <select class="gastos__select" id="gastos-category" required>';
-    html += '    <option value="">-- Seleccionar --</option>';
-    for (var c = 0; c < formCategories.length; c++) {
-      html += '<option value="' + formCategories[c].idx + '">' + esc(formCategories[c].name) + '</option>';
-    }
-    html += '  </select>';
-    html += '</div>';
-    // Fecha
-    html += '<div class="gastos__field">';
-    html += '  <label class="gastos__label" for="gastos-date">' + t('fecha') + '</label>';
-    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + todayStr() + '" required>';
-    html += '</div>';
-    html += '</div>';
-
-    html += '<button type="submit" class="gastos__submit">Registrar Gasto</button>';
-    html += '</form>';
-    html += '</div>'; // end form card
-
-    // ── 3+4. Expense History (with integrated filter pills) ──
-    html += '<div class="gastos__card">';
-    html += '<div class="gastos__card-title">';
-    html += esc(t('historial'));
-    html += '<div class="gastos__filter-pills">';
-    html += '<button class="gastos__pill gastos__pill--todos' +
-      (_filterRubro === -1 ? ' gastos__pill--active' : '') +
-      '" data-filter-rubro="-1">' + t('todos') + '</button>';
-    html += '<button class="gastos__pill gastos__pill--gastro' +
-      (_filterRubro === 0 ? ' gastos__pill--active' : '') +
-      '" data-filter-rubro="0">' + t('gastronomia') + '</button>';
-    html += '<button class="gastos__pill gastos__pill--compras' +
-      (_filterRubro === 1 ? ' gastos__pill--active' : '') +
-      '" data-filter-rubro="1">' + t('compras') + '</button>';
-    html += '</div>';
-    html += '<span class="gastos__filter-total">' + fmt(filteredTotal) + '</span>';
-    html += '<span class="gastos__count">' + filtered.length + ' ' + t('resultados') + '</span>';
-    html += '</div>';
-
-    if (filtered.length === 0) {
-      html += '<div class="gastos__empty">';
-      html += '  <div class="gastos__empty-icon">\uD83D\uDCCB</div>'; // clipboard
-      html += '  <div class="gastos__empty-text">';
-      html += 'No hay gastos registrados este mes. Usa el formulario para agregar uno.';
-      html += '  </div>';
-      html += '</div>';
-    } else {
-      html += '<div class="gastos__list">';
-      for (var j = 0; j < filtered.length; j++) {
-        html += renderExpenseItem(filtered[j]);
-      }
-      html += '</div>';
-    }
-    html += '</div>'; // end history card
-
-    // ── 5. Totals Summary ──────────────────────────
-    html += '<div class="gastos__card">';
-    html += '<div class="gastos__card-title">Desglose por rubro</div>';
-    html += '<div class="gastos__totals">';
-
-    // Gastro bar
-    html += '<div class="gastos__totals-row">';
-    html += '  <span class="gastos__totals-label">' + t('gastronomia') + '</span>';
-    html += '  <div class="gastos__totals-bar-wrap">';
-    html += '    <div class="gastos__totals-bar gastos__totals-bar--gastro"';
-    html += '         style="width:' + (totalAll > 0 ? gastroPct.toFixed(1) : 0) + '%">';
-    if (gastroPct > 15) {
-      html += '      <span class="gastos__totals-bar-text">' + Math.round(gastroPct) + '%</span>';
-    }
-    html += '    </div>';
-    html += '  </div>';
-    html += '  <span class="gastos__totals-amount">' + fmt(gastroTotal) + '</span>';
-    html += '  <span class="gastos__totals-pct">' + Math.round(gastroPct) + '%</span>';
-    html += '</div>';
-
-    // Compras bar
-    html += '<div class="gastos__totals-row">';
-    html += '  <span class="gastos__totals-label">' + t('compras') + '</span>';
-    html += '  <div class="gastos__totals-bar-wrap">';
-    html += '    <div class="gastos__totals-bar gastos__totals-bar--compras"';
-    html += '         style="width:' + (totalAll > 0 ? comprasPct.toFixed(1) : 0) + '%">';
-    if (comprasPct > 15) {
-      html += '      <span class="gastos__totals-bar-text">' + Math.round(comprasPct) + '%</span>';
-    }
-    html += '    </div>';
-    html += '  </div>';
-    html += '  <span class="gastos__totals-amount">' + fmt(comprasTotal) + '</span>';
-    html += '  <span class="gastos__totals-pct">' + Math.round(comprasPct) + '%</span>';
-    html += '</div>';
-
-    // Extra stats removed — already shown in budget card KPIs
-
-    html += '</div>'; // end totals
-    html += '</div>'; // end totals card
+    // ── Drawer: Nuevo Gasto form (fixed, off-screen) ──
+    html += renderDrawer(formCategories);
 
     html += '</div>'; // end gastos wrapper
 
@@ -552,8 +748,42 @@ window.GastosComponent = (() => {
 
   // ── Event Handlers ───────────────────────────────────────
 
+  function closeDrawer() {
+    var drawer  = window.DOM.qs('#gastos-drawer');
+    var overlay = window.DOM.qs('#gastos-overlay');
+    if (drawer)  drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
   function bindEvents() {
     if (!_container) return;
+
+    // Drawer: open
+    _cleanups.push(
+      window.DOM.delegate(_container, '#gastos-nuevo-btn', 'click', function () {
+        var drawer  = window.DOM.qs('#gastos-drawer');
+        var overlay = window.DOM.qs('#gastos-overlay');
+        if (drawer)  drawer.classList.add('open');
+        if (overlay) overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      })
+    );
+
+    // Drawer: close via X button
+    _cleanups.push(
+      window.DOM.delegate(_container, '#gastos-drawer-close', 'click', closeDrawer)
+    );
+
+    // Drawer: close via overlay click
+    _cleanups.push(
+      window.DOM.delegate(_container, '#gastos-overlay', 'click', closeDrawer)
+    );
+
+    // Drawer: close via Escape key
+    var _escHandler = function (e) { if (e.key === 'Escape') closeDrawer(); };
+    document.addEventListener('keydown', _escHandler);
+    _cleanups.push(function () { document.removeEventListener('keydown', _escHandler); });
 
     // Month navigation
     _cleanups.push(
@@ -575,7 +805,24 @@ window.GastosComponent = (() => {
     _cleanups.push(
       window.DOM.delegate(_container, '[data-form-rubro]', 'click', function (_e, el) {
         _selectedFormRubro = parseInt(el.getAttribute('data-form-rubro'), 10);
-        render();
+        
+        // Update pills
+        var pills = el.parentElement.querySelectorAll('.gastos__pill');
+        for (var i = 0; i < pills.length; i++) {
+          pills[i].classList.remove('gastos__pill--active');
+        }
+        el.classList.add('gastos__pill--active');
+        
+        // Update dropdown
+        var formCategories = getCategoriesForRubro(_selectedFormRubro);
+        var selectEl = window.DOM.qs('#gastos-category', _container);
+        if (selectEl) {
+          var htmlOptions = '<option value="">-- Seleccionar --</option>';
+          for (var c = 0; c < formCategories.length; c++) {
+            htmlOptions += '<option value="' + formCategories[c].idx + '">' + esc(formCategories[c].name) + '</option>';
+          }
+          selectEl.innerHTML = htmlOptions;
+        }
       })
     );
 
@@ -668,9 +915,7 @@ window.GastosComponent = (() => {
 
     window.AppStore.addExpense(expense);
     window.DOM.toast('Gasto registrado: ' + fmt(amount), 'success');
-
-    // Clear form - re-render will handle it, but also reset values
-    // so the next render shows clean form
+    closeDrawer();
     render();
   }
 
@@ -697,6 +942,7 @@ window.GastosComponent = (() => {
 
   function destroy() {
     clearTimeout(_acTimer);
+    document.body.style.overflow = '';
     closeAddCommerceModal();
     for (var i = 0; i < _cleanups.length; i++) {
       if (typeof _cleanups[i] === 'function') {

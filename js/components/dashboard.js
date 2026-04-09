@@ -194,7 +194,6 @@ window.DashboardComponent = (() => {
     var daysElapsed = (now.getFullYear() === time.year && now.getMonth() + 1 === time.month) ? now.getDate() : daysInMonth;
     var daysLeft = daysInMonth - (now.getFullYear() === time.year && now.getMonth() + 1 === time.month ? now.getDate() : 0);
     var avgPerDay = daysElapsed > 0 ? Math.round(spent / daysElapsed) : 0;
-    var projection = daysElapsed > 0 ? Math.round((spent / daysElapsed) * daysInMonth) : 0;
     var expenseCount = AppStore.getMonthExpenses(time.year, time.month).length;
 
     html += '<button class="dash-budget__stats-toggle" data-action="toggle-budget-stats" aria-expanded="false">';
@@ -203,7 +202,6 @@ window.DashboardComponent = (() => {
     html += '</button>';
     html += '<div class="dash-budget__stats" id="dash-budget-stats">';
     html += '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + DOM.formatARS(avgPerDay) + '</span><span class="dash-budget__stat-label">Promedio/d\u00eda</span></div>';
-    html += '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + DOM.formatARS(projection) + '</span><span class="dash-budget__stat-label">Proy. mes</span></div>';
     html += '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + daysLeft + '</span><span class="dash-budget__stat-label">D\u00edas restantes</span></div>';
     html += '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + expenseCount + '</span><span class="dash-budget__stat-label">Gastos registrados</span></div>';
     html += '</div>';
@@ -526,12 +524,10 @@ window.DashboardComponent = (() => {
       var daysElapsed = (now.getFullYear() === time.year && now.getMonth() + 1 === time.month) ? now.getDate() : daysInMonth;
       var daysLeft = daysInMonth - (now.getFullYear() === time.year && now.getMonth() + 1 === time.month ? now.getDate() : 0);
       var avgPerDay = daysElapsed > 0 ? Math.round(spent / daysElapsed) : 0;
-      var projection = daysElapsed > 0 ? Math.round((spent / daysElapsed) * daysInMonth) : 0;
       var expenseCount = AppStore.getMonthExpenses(time.year, time.month).length;
 
       statsEl.innerHTML =
         '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + DOM.formatARS(avgPerDay) + '</span><span class="dash-budget__stat-label">Promedio/d\u00eda</span></div>' +
-        '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + DOM.formatARS(projection) + '</span><span class="dash-budget__stat-label">Proy. mes</span></div>' +
         '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + daysLeft + '</span><span class="dash-budget__stat-label">D\u00edas restantes</span></div>' +
         '<div class="dash-budget__stat"><span class="dash-budget__stat-value">' + expenseCount + '</span><span class="dash-budget__stat-label">Gastos registrados</span></div>';
     }
