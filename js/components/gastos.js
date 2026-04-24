@@ -25,6 +25,8 @@ window.GastosComponent = (() => {
   var RUBRO_NAMES = ['Gastronomia', 'Compras'];
   var RUBRO_ICONS = ['\uD83C\uDF54', '\uD83D\uDED2']; // burger, cart
   var RUBRO_CLASSES = ['gastro', 'compras'];
+  var CUSTOM_CATEGORY_VALUE = 'other';
+  var CUSTOM_CATEGORY_LABEL = 'Otro';
 
   /**
    * Categories from RAW.c mapped to rubros via RAW.r
@@ -39,6 +41,9 @@ window.GastosComponent = (() => {
   var _selectedFormRubro = 0; // 0=Gastro, 1=Compras
   var _filterRubro = -1; // -1=all, 0=gastro, 1=compras
   var _confirmDeleteId = null;
+  var _lastFormDate = todayStr();
+  var _lastCategorySelectionByRubro = { 0: '', 1: '' };
+  var _lastCustomCategoryByRubro = { 0: '', 1: '' };
   var _cleanups = [];
   var _acTimer = null;
 
@@ -104,6 +109,89 @@ window.GastosComponent = (() => {
       }
     }
     return result;
+  }
+
+  function buildCategoryOptions(formCategories, selectedValue) {
+    var html = '<option value="">-- Seleccionar --</option>';
+    for (var c = 0; c < formCategories.length; c++) {
+      var optionValue = String(formCategories[c].idx);
+      var selectedAttr = selectedValue === optionValue ? ' selected' : '';
+      html += '<option value="' + optionValue + '"' + selectedAttr + '>' + esc(formCategories[c].name) + '</option>';
+    }
+    html += '<option value="' + CUSTOM_CATEGORY_VALUE + '"' +
+      (selectedValue === CUSTOM_CATEGORY_VALUE ? ' selected' : '') + '>' + CUSTOM_CATEGORY_LABEL + '</option>';
+    return html;
+  }
+
+  function syncCustomCategoryField() {
+    var categoryEl = window.DOM.qs('#gastos-category', _container);
+    var customWrapEl = window.DOM.qs('#gastos-custom-category-wrap', _container);
+    var customInputEl = window.DOM.qs('#gastos-custom-category', _container);
+    if (!categoryEl || !customWrapEl || !customInputEl) return;
+
+    var isOtherSelected = categoryEl.value === CUSTOM_CATEGORY_VALUE;
+    customWrapEl.hidden = !isOtherSelected;
+    customInputEl.required = isOtherSelected;
+
+    if (!isOtherSelected) {
+      customInputEl.value = '';
+    }
+  }
+
+  function getRememberedCategoryValue(rubroIdx) {
+    return _lastCategorySelectionByRubro[rubroIdx] || '';
+  }
+
+  function getRememberedCustomCategory(rubroIdx) {
+    return _lastCustomCategoryByRubro[rubroIdx] || '';
+  }
+
+  function rememberFormSelection(rubroIdx, categoryValue, customCategory, dateValue) {
+    _lastCategorySelectionByRubro[rubroIdx] = categoryValue || '';
+    _lastCustomCategoryByRubro[rubroIdx] = customCategory || '';
+    _lastFormDate = dateValue || todayStr();
+  }
+
+  function applyRememberedCategorySelection() {
+    var categoryEl = window.DOM.qs('#gastos-category', _container);
+    var customCategoryEl = window.DOM.qs('#gastos-custom-category', _container);
+    var dateEl = window.DOM.qs('#gastos-date', _container);
+    var rememberedCategory = getRememberedCategoryValue(_selectedFormRubro);
+
+    if (categoryEl && rememberedCategory) {
+      categoryEl.value = rememberedCategory;
+    }
+
+    syncCustomCategoryField();
+
+    if (customCategoryEl) {
+      customCategoryEl.value = getRememberedCustomCategory(_selectedFormRubro);
+    }
+
+    if (dateEl && _lastFormDate) {
+      dateEl.value = _lastFormDate;
+    }
+  }
+
+  function openDrawer() {
+    var drawer  = window.DOM.qs('#gastos-drawer');
+    var overlay = window.DOM.qs('#gastos-overlay');
+    if (drawer)  drawer.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    applyRememberedCategorySelection();
+
+    var commerceEl = window.DOM.qs('#gastos-commerce', _container);
+    if (commerceEl) commerceEl.focus();
+  }
+
+  function getExpenseCategoryLabel(expense) {
+    if (expense && expense.categoryLabel) return expense.categoryLabel;
+    if (expense && expense.customCategory) return expense.customCategory;
+    if (window.RAW && window.RAW.c && typeof expense.category === 'number') {
+      return window.RAW.c[expense.category] || '';
+    }
+    return '';
   }
 
   /**
@@ -374,6 +462,8 @@ window.GastosComponent = (() => {
   }
 
   function renderDrawer(formCategories) {
+    var selectedCategory = getRememberedCategoryValue(_selectedFormRubro);
+    var selectedCustomCategory = getRememberedCustomCategory(_selectedFormRubro);
     var html = '<div class="gastos__drawer-overlay" id="gastos-overlay"></div>';
     html += '<div class="gastos__drawer" id="gastos-drawer">';
     html += '<div class="gastos__drawer-header">';
@@ -422,19 +512,25 @@ window.GastosComponent = (() => {
     html += '<div class="gastos__field">';
     html += '  <label class="gastos__label" for="gastos-category">' + t('categorias') + '</label>';
     html += '  <select class="gastos__select" id="gastos-category" required>';
-    html += '    <option value="">-- Seleccionar --</option>';
-    for (var c = 0; c < formCategories.length; c++) {
-      html += '<option value="' + formCategories[c].idx + '">' + esc(formCategories[c].name) + '</option>';
-    }
+    html += buildCategoryOptions(formCategories, selectedCategory);
     html += '  </select>';
+    html += '  <span class="gastos__field-hint">Si no aparece en la lista, elegi Otro.</span>';
+    html += '</div>';
+    html += '<div class="gastos__field gastos__field--conditional" id="gastos-custom-category-wrap"' + (selectedCategory === CUSTOM_CATEGORY_VALUE ? '' : ' hidden') + '>';
+    html += '  <label class="gastos__label" for="gastos-custom-category">Categoria personalizada</label>';
+    html += '  <input class="gastos__input" type="text" id="gastos-custom-category" placeholder="Ej: Estacionamiento" maxlength="40" value="' + esc(selectedCustomCategory) + '">';
+    html += '  <span class="gastos__field-hint">Se guardara tal como la escribas.</span>';
     html += '</div>';
     html += '<div class="gastos__field">';
     html += '  <label class="gastos__label" for="gastos-date">' + t('fecha') + '</label>';
-    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + todayStr() + '" required>';
+    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + esc(_lastFormDate || todayStr()) + '" required>';
     html += '</div>';
     html += '</div>';
 
-    html += '<button type="submit" class="gastos__submit">Registrar Gasto</button>';
+    html += '<div class="gastos__form-actions">';
+    html += '  <button type="submit" class="gastos__submit gastos__submit--secondary" data-submit-mode="continue">Guardar y cargar otro</button>';
+    html += '  <button type="submit" class="gastos__submit" data-submit-mode="close">Registrar Gasto</button>';
+    html += '</div>';
     html += '</form>';
     html += '</div>'; // end drawer-body
     html += '</div>'; // end drawer
@@ -634,6 +730,8 @@ window.GastosComponent = (() => {
         e.target.value = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
       });
     }
+    syncCustomCategoryField();
+
     // Commerce autocomplete — re-attached after every render
     var commerceEl = window.DOM.qs('#gastos-commerce', _container);
     var acPanel = window.DOM.qs('#gastos-ac-panel', _container);
@@ -703,10 +801,7 @@ window.GastosComponent = (() => {
     var rubroIdx = typeof expense.rubro === 'number' ? expense.rubro : 0;
     var rubroClass = RUBRO_CLASSES[rubroIdx] || 'gastro';
     var icon = RUBRO_ICONS[rubroIdx] || '\uD83C\uDF54';
-    var catName = '';
-    if (window.RAW && window.RAW.c && typeof expense.category === 'number') {
-      catName = window.RAW.c[expense.category] || '';
-    }
+    var catName = getExpenseCategoryLabel(expense);
     var isConfirm = _confirmDeleteId === expense.id;
 
     var html = '<div class="gastos__item' + (isConfirm ? ' gastos__item--confirm' : '') +
@@ -762,11 +857,7 @@ window.GastosComponent = (() => {
     // Drawer: open
     _cleanups.push(
       window.DOM.delegate(_container, '#gastos-nuevo-btn', 'click', function () {
-        var drawer  = window.DOM.qs('#gastos-drawer');
-        var overlay = window.DOM.qs('#gastos-overlay');
-        if (drawer)  drawer.classList.add('open');
-        if (overlay) overlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        openDrawer();
       })
     );
 
@@ -817,12 +908,23 @@ window.GastosComponent = (() => {
         var formCategories = getCategoriesForRubro(_selectedFormRubro);
         var selectEl = window.DOM.qs('#gastos-category', _container);
         if (selectEl) {
-          var htmlOptions = '<option value="">-- Seleccionar --</option>';
-          for (var c = 0; c < formCategories.length; c++) {
-            htmlOptions += '<option value="' + formCategories[c].idx + '">' + esc(formCategories[c].name) + '</option>';
-          }
-          selectEl.innerHTML = htmlOptions;
+          selectEl.innerHTML = buildCategoryOptions(formCategories, getRememberedCategoryValue(_selectedFormRubro));
         }
+        applyRememberedCategorySelection();
+      })
+    );
+
+    // Category select change
+    _cleanups.push(
+      window.DOM.delegate(_container, '#gastos-category', 'change', function (_e, el) {
+        _lastCategorySelectionByRubro[_selectedFormRubro] = el.value || '';
+        syncCustomCategoryField();
+      })
+    );
+
+    _cleanups.push(
+      window.DOM.delegate(_container, '#gastos-custom-category', 'input', function (_e, el) {
+        _lastCustomCategoryByRubro[_selectedFormRubro] = el.value.trim();
       })
     );
 
@@ -866,55 +968,88 @@ window.GastosComponent = (() => {
     _cleanups.push(
       window.DOM.delegate(_container, '#gastos-form', 'submit', function (e) {
         e.preventDefault();
-        handleFormSubmit();
+        handleFormSubmit(e.submitter && e.submitter.getAttribute('data-submit-mode') === 'continue');
       })
     );
 
   }
 
-  function handleFormSubmit() {
+  function handleFormSubmit(keepOpen) {
     var commerceEl = window.DOM.qs('#gastos-commerce', _container);
     var amountEl = window.DOM.qs('#gastos-amount', _container);
     var categoryEl = window.DOM.qs('#gastos-category', _container);
+    var customCategoryEl = window.DOM.qs('#gastos-custom-category', _container);
     var dateEl = window.DOM.qs('#gastos-date', _container);
 
-    if (!commerceEl || !amountEl || !categoryEl || !dateEl) return;
+    if (!commerceEl || !amountEl || !categoryEl || !customCategoryEl || !dateEl) return;
 
     var commerce = commerceEl.value.trim();
     var amount = parseFloat(amountEl.value.replace(/\./g, ''));
     var category = parseInt(categoryEl.value, 10);
+    var customCategory = customCategoryEl.value.trim();
+    var isCustomCategory = categoryEl.value === CUSTOM_CATEGORY_VALUE;
     var date = dateEl.value;
 
     // Validation
     if (!commerce) {
+      window.DOM.toast('Ingresa el comercio.', 'warning');
       commerceEl.focus();
       return;
     }
     if (isNaN(amount) || amount <= 0) {
+      window.DOM.toast('Ingresa un monto valido mayor a cero.', 'warning');
       amountEl.focus();
       return;
     }
-    if (isNaN(category) || categoryEl.value === '') {
+    if (categoryEl.value === '' || (!isCustomCategory && isNaN(category))) {
+      window.DOM.toast('Selecciona una categoria.', 'warning');
       categoryEl.focus();
       return;
     }
+    if (isCustomCategory && !customCategory) {
+      window.DOM.toast('Especifica la categoria personalizada.', 'warning');
+      customCategoryEl.focus();
+      return;
+    }
     if (!date) {
+      window.DOM.toast('Selecciona una fecha.', 'warning');
       dateEl.focus();
       return;
     }
+
+    rememberFormSelection(
+      _selectedFormRubro,
+      isCustomCategory ? CUSTOM_CATEGORY_VALUE : String(category),
+      isCustomCategory ? customCategory : '',
+      date
+    );
 
     var expense = {
       id: 'exp_' + Date.now(),
       commerce: commerce,
       amount: amount,
       rubro: _selectedFormRubro,
-      category: category,
+      category: isCustomCategory ? null : category,
+      categoryLabel: isCustomCategory ? customCategory : getExpenseCategoryLabel({ category: category }),
+      customCategory: isCustomCategory ? customCategory : '',
       date: date,
       createdAt: Date.now()
     };
 
     window.AppStore.addExpense(expense);
     window.DOM.toast('Gasto registrado: ' + fmt(amount), 'success');
+    if (keepOpen) {
+      render();
+      openDrawer();
+      var nextAmountEl = window.DOM.qs('#gastos-amount', _container);
+      if (nextAmountEl) nextAmountEl.value = '';
+      var nextCommerceEl = window.DOM.qs('#gastos-commerce', _container);
+      if (nextCommerceEl) {
+        nextCommerceEl.value = '';
+        nextCommerceEl.focus();
+      }
+      return;
+    }
     closeDrawer();
     render();
   }
