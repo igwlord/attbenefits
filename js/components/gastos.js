@@ -672,11 +672,12 @@ window.GastosComponent = (() => {
 
     var html = '<div class="gastos">';
 
-    // ── Row 1: Budget Tracker + Nuevo Gasto button ──
+    // ── Row 1: Budget Tracker + action buttons ──
     html += '<div class="gastos__card gastos__budget">';
     html += '<div class="gastos__budget-header">';
+    html += '<a class="gastos__header-btn gastos__header-btn--saldo" href="https://edenred.com.ar/tarjeta/consulta-de-saldo/" target="_blank" rel="noopener noreferrer">Consultar saldo</a>';
     html += renderMonthSelector();
-    html += '<button class="gastos__nuevo-btn" id="gastos-nuevo-btn">';
+    html += '<button class="gastos__header-btn gastos__nuevo-btn" id="gastos-nuevo-btn">';
     html += '<svg width="14" height="14" viewBox="0 0 14 14" fill="none">';
     html += '<path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
     html += '</svg> Nuevo Gasto</button>';

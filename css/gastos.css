@@ -42,31 +42,45 @@
   align-items: center;
   margin-bottom: var(--gap);
 }
-.gastos__budget-header::before {
-  content: '';
-}
 
-.gastos__nuevo-btn {
+.gastos__header-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 7px 14px;
   border-radius: var(--radius);
-  background: var(--accent-gradient);
   color: #fff;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  border: none;
+  text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  justify-self: end;
   transition: opacity var(--transition), box-shadow var(--transition);
+}
+
+.gastos__header-btn--saldo {
+  justify-self: start;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.gastos__nuevo-btn {
+  justify-self: end;
+  background: var(--accent-gradient);
+  border: none;
 }
 
 .gastos__nuevo-btn:hover {
   opacity: 0.9;
   box-shadow: var(--shadow-accent);
+}
+
+.gastos__header-btn--saldo:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-hover);
 }
 
 
@@ -1000,13 +1014,8 @@
     gap: var(--gap-md);
   }
 
-  .gastos__budget-header::before {
-    display: none;
-  }
-
-  .gastos__nuevo-btn {
+  .gastos__header-btn {
     width: 100%;
-    justify-content: center;
   }
 
   .gastos__month-label {
