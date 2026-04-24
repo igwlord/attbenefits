@@ -105,7 +105,6 @@
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   color: var(--text);
-  margin-bottom: var(--gap-md);
   display: flex;
   align-items: center;
   gap: var(--gap-sm);
@@ -253,6 +252,8 @@
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--gap-sm);
   margin-top: var(--gap);
+
+.gastos__item-edit,
 }
 
 .gastos__stat {
@@ -262,17 +263,30 @@
   border-radius: var(--radius);
   border: none;
 }
-
+  border: 1px solid transparent;
 .gastos__stat-value {
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
   color: var(--text);
-  display: block;
+              background var(--transition), border-color var(--transition);
+}
+
+.gastos__item-edit {
+  width: auto;
+  padding: 0 10px;
+  color: var(--accent);
   margin-bottom: 2px;
 }
+.gastos__item:hover .gastos__item-edit,
 
 .gastos__stat-label {
   font-size: var(--text-xs);
+
+.gastos__item-edit:hover {
+  color: var(--accent);
+  background: rgba(25, 146, 255, 0.12);
+  border-color: rgba(25, 146, 255, 0.2);
+}
   color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -492,6 +506,10 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.gastos__submit--single {
+  grid-column: 1 / -1;
 }
 
 .gastos__submit--secondary {
@@ -1067,7 +1085,7 @@
     max-width: none;
     height: 100%;
     max-height: none;
-    border-radius: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border: none;
   }
 
@@ -1697,20 +1715,38 @@
   display: block;
 }
 
+.gastos__tx-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.gastos__tx-edit,
 .gastos__tx-delete {
   opacity: 0;
   background: transparent;
-  border: none;
-  color: var(--danger);
+  border: 1px solid transparent;
   cursor: pointer;
   padding: 4px 6px;
   border-radius: var(--radius-xs);
   font-size: 0.75rem;
-  transition: opacity var(--transition), background var(--transition);
+  transition: opacity var(--transition), background var(--transition), border-color var(--transition);
 }
 
+.gastos__tx-edit {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.gastos__tx-row:hover .gastos__tx-edit,
 .gastos__tx-row:hover .gastos__tx-delete {
   opacity: 1;
+}
+
+.gastos__tx-edit:hover {
+  background: rgba(25, 146, 255, 0.12);
+  border-color: rgba(25, 146, 255, 0.2);
 }
 
 .gastos__tx-delete:hover {

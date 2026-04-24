@@ -1,0 +1,12 @@
+[build]
+publish = "."
+
+[[redirects]]
+from = "/"
+to = "/ABRIR-APP.HTML"
+status = 200
+
+[[redirects]]
+from = "/*"
+to = "/ABRIR-APP.HTML"
+status = 200

@@ -213,6 +213,29 @@ window.AppStore = (() => {
   }
 
   /**
+   * Update an expense by its ID.
+   * @param {string} id - Expense ID
+   * @param {Object} updates - Partial expense object with updated values
+   */
+  function updateExpense(id, updates) {
+    if (!id || !updates || typeof updates.amount !== 'number') return;
+
+    var changed = false;
+    var list = _state.expenses.map(function (expense) {
+      if (expense.id !== id) return expense;
+      changed = true;
+      return Object.assign({}, expense, updates, {
+        id: expense.id,
+        date: updates.date || expense.date || new Date().toISOString().slice(0, 10)
+      });
+    });
+
+    if (changed) {
+      set('expenses', list);
+    }
+  }
+
+  /**
    * Remove an expense by its ID.
    * @param {string} id - Expense ID
    */
@@ -412,6 +435,7 @@ window.AppStore = (() => {
     isFavorite: isFavorite,
 
     addExpense: addExpense,
+    updateExpense: updateExpense,
     removeExpense: removeExpense,
     getMonthExpenses: getMonthExpenses,
     getMonthlySpent: getMonthlySpent,

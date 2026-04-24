@@ -41,6 +41,7 @@ window.GastosComponent = (() => {
   var _selectedFormRubro = 0; // 0=Gastro, 1=Compras
   var _filterRubro = -1; // -1=all, 0=gastro, 1=compras
   var _confirmDeleteId = null;
+  var _editingExpenseId = null;
   var _lastFormDate = todayStr();
   var _lastCategorySelectionByRubro = { 0: '', 1: '' };
   var _lastCustomCategoryByRubro = { 0: '', 1: '' };
@@ -153,6 +154,11 @@ window.GastosComponent = (() => {
   }
 
   function applyRememberedCategorySelection() {
+    if (_editingExpenseId) {
+      syncCustomCategoryField();
+      return;
+    }
+
     var categoryEl = window.DOM.qs('#gastos-category', _container);
     var customCategoryEl = window.DOM.qs('#gastos-custom-category', _container);
     var dateEl = window.DOM.qs('#gastos-date', _container);
@@ -192,6 +198,23 @@ window.GastosComponent = (() => {
       return window.RAW.c[expense.category] || '';
     }
     return '';
+  }
+
+  function formatAmountInputValue(amount) {
+    if (typeof amount !== 'number' || !isFinite(amount) || amount <= 0) return '';
+    return String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function getExpenseById(id) {
+    var expenses = window.AppStore ? (window.AppStore.get('expenses') || []) : [];
+    for (var i = 0; i < expenses.length; i++) {
+      if (expenses[i].id === id) return expenses[i];
+    }
+    return null;
+  }
+
+  function getEditingExpense() {
+    return _editingExpenseId ? getExpenseById(_editingExpenseId) : null;
   }
 
   /**
@@ -462,12 +485,21 @@ window.GastosComponent = (() => {
   }
 
   function renderDrawer(formCategories) {
-    var selectedCategory = getRememberedCategoryValue(_selectedFormRubro);
-    var selectedCustomCategory = getRememberedCustomCategory(_selectedFormRubro);
+    var editingExpense = getEditingExpense();
+    var isEditing = !!editingExpense;
+    var selectedCategory = isEditing
+      ? (editingExpense.customCategory ? CUSTOM_CATEGORY_VALUE : String(editingExpense.category))
+      : getRememberedCategoryValue(_selectedFormRubro);
+    var selectedCustomCategory = isEditing
+      ? (editingExpense.customCategory || '')
+      : getRememberedCustomCategory(_selectedFormRubro);
+    var commerceValue = isEditing ? (editingExpense.commerce || '') : '';
+    var amountValue = isEditing ? formatAmountInputValue(editingExpense.amount) : '';
+    var dateValue = isEditing ? (editingExpense.date || todayStr()) : (_lastFormDate || todayStr());
     var html = '<div class="gastos__drawer-overlay" id="gastos-overlay"></div>';
     html += '<div class="gastos__drawer" id="gastos-drawer">';
     html += '<div class="gastos__drawer-header">';
-    html += '  <span class="gastos__drawer-title">Nuevo Gasto</span>';
+    html += '  <span class="gastos__drawer-title">' + (isEditing ? 'Editar gasto' : 'Nuevo Gasto') + '</span>';
     html += '  <button class="gastos__drawer-close" id="gastos-drawer-close" aria-label="Cerrar">';
     html += '    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">';
     html += '      <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
@@ -482,7 +514,7 @@ window.GastosComponent = (() => {
     html += '  <label class="gastos__label" for="gastos-commerce">' + t('comercio') + '</label>';
     html += '  <div class="gastos__ac-wrap">';
     html += '    <input class="gastos__input" type="text" id="gastos-commerce"';
-    html += '           placeholder="Nombre del comercio" autocomplete="off" required>';
+    html += '           placeholder="Nombre del comercio" autocomplete="off" required value="' + esc(commerceValue) + '">';
     html += '    <div class="gastos__ac-panel" id="gastos-ac-panel" hidden></div>';
     html += '  </div>';
     html += '</div>';
@@ -491,7 +523,7 @@ window.GastosComponent = (() => {
     html += '  <div class="gastos__input-group">';
     html += '    <span class="gastos__input-prefix">$</span>';
     html += '    <input class="gastos__input" type="text" inputmode="numeric" id="gastos-amount"';
-    html += '           placeholder="0" required>';
+    html += '           placeholder="0" required value="' + esc(amountValue) + '">';
     html += '  </div>';
     html += '</div>';
     html += '</div>';
@@ -523,13 +555,17 @@ window.GastosComponent = (() => {
     html += '</div>';
     html += '<div class="gastos__field">';
     html += '  <label class="gastos__label" for="gastos-date">' + t('fecha') + '</label>';
-    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + esc(_lastFormDate || todayStr()) + '" required>';
+    html += '  <input class="gastos__input" type="date" id="gastos-date" value="' + esc(dateValue) + '" required>';
     html += '</div>';
     html += '</div>';
 
     html += '<div class="gastos__form-actions">';
-    html += '  <button type="submit" class="gastos__submit gastos__submit--secondary" data-submit-mode="continue">Guardar y cargar otro</button>';
-    html += '  <button type="submit" class="gastos__submit" data-submit-mode="close">Registrar Gasto</button>';
+    if (!isEditing) {
+      html += '  <button type="submit" class="gastos__submit gastos__submit--secondary" data-submit-mode="continue">Guardar y cargar otro</button>';
+      html += '  <button type="submit" class="gastos__submit" data-submit-mode="close">Registrar Gasto</button>';
+    } else {
+      html += '  <button type="submit" class="gastos__submit gastos__submit--single" data-submit-mode="close">Guardar cambios</button>';
+    }
     html += '</div>';
     html += '</form>';
     html += '</div>'; // end drawer-body
@@ -602,7 +638,7 @@ window.GastosComponent = (() => {
       // Amount
       html += '<td><span class="gastos__tx-amount">' + fmt(e.amount) + '</span></td>';
 
-      // Delete / Confirm
+      // Actions
       html += '<td>';
       if (isConfirm) {
         html += '<div class="gastos__tx-confirm">';
@@ -610,11 +646,14 @@ window.GastosComponent = (() => {
         html += '<button class="gastos__tx-confirm-no" data-cancel-delete="1">Cancelar</button>';
         html += '</div>';
       } else {
+        html += '<div class="gastos__tx-actions">';
+        html += '<button class="gastos__tx-edit" data-edit-id="' + esc(e.id) + '" aria-label="Editar">Editar</button>';
         html += '<button class="gastos__tx-delete" data-delete-id="' + esc(e.id) + '" aria-label="Eliminar">';
         html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
         html += '<polyline points="3 6 5 6 21 6"/>';
         html += '<path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>';
         html += '</svg></button>';
+        html += '</div>';
       }
       html += '</td>';
 
@@ -830,6 +869,7 @@ window.GastosComponent = (() => {
       html += '<button class="gastos__item-confirm-yes" data-confirm-delete="' + esc(expense.id) + '">S\u00ed</button>';
       html += '<button class="gastos__item-confirm-no" data-cancel-delete="1">No</button>';
     } else {
+      html += '<button class="gastos__item-edit" data-edit-id="' + esc(expense.id) + '" aria-label="Editar">Editar</button>';
       html += '<button class="gastos__item-delete" data-delete-id="' + esc(expense.id) + '" aria-label="' + t('eliminar') + '">';
       html += '  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
       html += '    <polyline points="3 6 5 6 21 6"/>';
@@ -858,6 +898,9 @@ window.GastosComponent = (() => {
     // Drawer: open
     _cleanups.push(
       window.DOM.delegate(_container, '#gastos-nuevo-btn', 'click', function () {
+        _editingExpenseId = null;
+        _confirmDeleteId = null;
+        render();
         openDrawer();
       })
     );
@@ -938,9 +981,30 @@ window.GastosComponent = (() => {
       })
     );
 
+    // Edit expense
+    _cleanups.push(
+      window.DOM.delegate(_container, '[data-edit-id]', 'click', function (_e, el) {
+        var expense = getExpenseById(el.getAttribute('data-edit-id'));
+        if (!expense) return;
+
+        _editingExpenseId = expense.id;
+        _selectedFormRubro = typeof expense.rubro === 'number' ? expense.rubro : 0;
+        _confirmDeleteId = null;
+        rememberFormSelection(
+          _selectedFormRubro,
+          expense.customCategory ? CUSTOM_CATEGORY_VALUE : String(expense.category),
+          expense.customCategory || '',
+          expense.date || todayStr()
+        );
+        render();
+        openDrawer();
+      })
+    );
+
     // Delete expense - step 1: show confirm
     _cleanups.push(
       window.DOM.delegate(_container, '[data-delete-id]', 'click', function (_e, el) {
+        _editingExpenseId = null;
         _confirmDeleteId = el.getAttribute('data-delete-id');
         render();
       })
@@ -951,6 +1015,9 @@ window.GastosComponent = (() => {
       window.DOM.delegate(_container, '[data-confirm-delete]', 'click', function (_e, el) {
         var id = el.getAttribute('data-confirm-delete');
         window.AppStore.removeExpense(id);
+        if (_editingExpenseId === id) {
+          _editingExpenseId = null;
+        }
         _confirmDeleteId = null;
         window.DOM.toast('Gasto eliminado', 'success');
         // render will be triggered by store subscription
@@ -990,6 +1057,7 @@ window.GastosComponent = (() => {
     var customCategory = customCategoryEl.value.trim();
     var isCustomCategory = categoryEl.value === CUSTOM_CATEGORY_VALUE;
     var date = dateEl.value;
+    var editingExpense = getEditingExpense();
 
     // Validation
     if (!commerce) {
@@ -1026,7 +1094,6 @@ window.GastosComponent = (() => {
     );
 
     var expense = {
-      id: 'exp_' + Date.now(),
       commerce: commerce,
       amount: amount,
       rubro: _selectedFormRubro,
@@ -1037,6 +1104,17 @@ window.GastosComponent = (() => {
       createdAt: Date.now()
     };
 
+    if (editingExpense) {
+      expense.createdAt = editingExpense.createdAt || Date.now();
+      window.AppStore.updateExpense(editingExpense.id, expense);
+      _editingExpenseId = null;
+      window.DOM.toast('Gasto actualizado: ' + fmt(amount), 'success');
+      closeDrawer();
+      render();
+      return;
+    }
+
+    expense.id = 'exp_' + Date.now();
     window.AppStore.addExpense(expense);
     window.DOM.toast('Gasto registrado: ' + fmt(amount), 'success');
     if (keepOpen) {
