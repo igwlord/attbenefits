@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="css/variables.css?v=14">
 <link rel="stylesheet" href="css/base.css?v=14">
 <link rel="stylesheet" href="css/nav.css?v=11">
-<link rel="stylesheet" href="css/comercios.css?v=14">
+<link rel="stylesheet" href="css/comercios.css?v=15">
 <link rel="stylesheet" href="css/dashboard.css?v=18">
 <link rel="stylesheet" href="css/gastos.css?v=25">
 <link rel="stylesheet" href="css/config.css?v=19">
@@ -69,11 +69,11 @@
 <script src="js/utils/dom.js?v=5"></script>
 <!-- Core -->
 <script src="js/i18n.js?v=5"></script>
-<script src="js/store.js?v=5"></script>
+<script src="js/store.js?v=6"></script>
 <script src="js/router.js?v=5"></script>
 <!-- Components -->
 <script src="js/components/nav.js?v=7"></script>
-<script src="js/components/comercios.js?v=11"></script>
+<script src="js/components/comercios.js?v=12"></script>
 <script src="js/components/dashboard.js?v=9"></script>
 <script src="js/components/gastos.js?v=12"></script>
 <script src="js/components/config.js?v=9"></script>
@@ -139,6 +139,10 @@
 
   // Initialize router (triggers first route)
   AppRouter.init();
+
+  if (window.Storage && typeof window.Storage.isPersistent === 'function' && !window.Storage.isPersistent() && window.DOM) {
+    window.DOM.toast('Modo local activo: si tu navegador bloquea el almacenamiento en archivos locales, los datos no se guardaran al cerrar la ventana.', 'warning', 5500);
+  }
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {

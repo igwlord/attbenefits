@@ -10,13 +10,15 @@ window.ComerciosComponent = (() => {
 
   // ── Constants ──────────────────────────────────────────────
 
-  const PAGE_SIZE = 10;
+  const DEFAULT_PAGE_SIZE = 20;
+  const PAGE_SIZE_OPTIONS = [20, 50, 100];
   const CAT_ICONS = ['\uD83D\uDED2','\uD83C\uDF7D\uFE0F','\uD83E\uDD50','\uD83C\uDFEA','\uD83E\uDD69','\uD83C\uDF71','\uD83C\uDF7A','\uD83D\uDCE6','\uD83C\uDF77','\uD83C\uDFEC','\uD83C\uDFDB\uFE0F','\uD83D\uDCB0','\uD83D\uDCCB'];
   const CAT_COLORS = ['var(--cat0)','var(--cat1)','var(--cat2)','var(--cat3)','var(--cat4)','var(--cat5)','var(--cat6)','var(--cat7)','var(--cat8)','var(--cat9)','var(--cat10)','var(--cat11)','var(--cat12)'];
   const RUBRO_NAMES = ['Gastronom\u00eda', 'Compras'];
   const SEARCH_DEBOUNCE_MS = 150;
   const SEARCH_SAVE_MS = 1000;
   const SORT_LABELS = { 'relevance': 'Relevancia', 'name-asc': 'Nombre A\u2192Z', 'name-desc': 'Nombre Z\u2192A' };
+  const ADDRESS_HINT_RE = /(\d|\bav\.?\b|\bavenida\b|\bcalle\b|\bruta\b|\bkm\b|\besq\.?\b|\besquina\b|\bboulevard\b|\bblvd\b|\bpasaje\b|\bpje\b|\bautopista\b|\bshopping\b|\bterminal\b|\baeropuerto\b)/i;
 
   // ── Module state ──────────────────────────────────────────
 
@@ -36,12 +38,54 @@ window.ComerciosComponent = (() => {
 
   // ── Search Index ──────────────────────────────────────────
 
+  function _getPageSize() {
+    var value = parseInt(AppStore.get('pageSize'), 10);
+    return PAGE_SIZE_OPTIONS.indexOf(value) !== -1 ? value : DEFAULT_PAGE_SIZE;
+  }
+
+  function _parseCommerceRecord(rec) {
+    var rawName = (rec && rec[0]) || '';
+    var name = rawName;
+    var address = '';
+    var separators = [' - ', ' – ', ' — '];
+
+    for (var i = 0; i < separators.length; i++) {
+      var sep = separators[i];
+      var splitAt = rawName.lastIndexOf(sep);
+      if (splitAt <= 0) continue;
+
+      var possibleName = rawName.slice(0, splitAt).trim();
+      var possibleAddress = rawName.slice(splitAt + sep.length).trim();
+      if (!possibleName || !possibleAddress) continue;
+      if (!ADDRESS_HINT_RE.test(possibleAddress)) continue;
+
+      name = possibleName;
+      address = possibleAddress;
+      break;
+    }
+
+    return {
+      rawName: rawName,
+      name: name,
+      address: address,
+      locId: rec[1],
+      catIdx: rec[2]
+    };
+  }
+
+  function _buildAddressPreview(address) {
+    if (!address) return 'Sin direccion';
+    return address.length > 36 ? address.slice(0, 33).trim() + '...' : address;
+  }
+
   function _buildSearchIndex() {
     var data = RAW.d, locs = RAW.l, cats = RAW.c;
     _searchIndex = new Array(data.length);
     for (var i = 0; i < data.length; i++) {
       var rec = data[i];
-      _searchIndex[i] = (rec[0] || '').toLowerCase() + '|' +
+      var commerce = _parseCommerceRecord(rec);
+      _searchIndex[i] = commerce.name.toLowerCase() + '|' +
+                        commerce.address.toLowerCase() + '|' +
                         (locs[rec[1]] || '').toLowerCase() + '|' +
                         (cats[rec[2]] || '').toLowerCase();
     }
@@ -337,9 +381,23 @@ window.ComerciosComponent = (() => {
     var sort = AppStore.get('sort') || 'relevance';
     var sortSubLabels = { 'relevance': 'relevancia', 'name-asc': 'nombre A\u2192Z', 'name-desc': 'nombre Z\u2192A' };
     var total = _filtered.length;
+    var pageSize = _getPageSize();
+    var optionsHtml = '';
+
+    for (var i = 0; i < PAGE_SIZE_OPTIONS.length; i++) {
+      var option = PAGE_SIZE_OPTIONS[i];
+      optionsHtml += '<option value="' + option + '"' + (option === pageSize ? ' selected' : '') + '>' + option + '</option>';
+    }
+
     return '<div class="com-results-bar">' +
-      '<span class="com-results-bar__count"><strong>' + _fmtNum(total) + '</strong> resultado' + (total !== 1 ? 's' : '') + '</span>' +
-      '<span class="com-results-bar__order">\u00B7 Ordenado por ' + sortSubLabels[sort] + '</span>' +
+      '<div class="com-results-bar__summary">' +
+        '<span class="com-results-bar__count"><strong>' + _fmtNum(total) + '</strong> resultado' + (total !== 1 ? 's' : '') + '</span>' +
+        '<span class="com-results-bar__order">\u00B7 Ordenado por ' + sortSubLabels[sort] + '</span>' +
+      '</div>' +
+      '<label class="com-results-bar__page-size">' +
+        '<span>Mostrar</span>' +
+        '<select class="com-results-bar__select" data-action="set-page-size" aria-label="Cantidad de comercios por pagina">' + optionsHtml + '</select>' +
+      '</label>' +
     '</div>';
   }
 
@@ -347,9 +405,10 @@ window.ComerciosComponent = (() => {
 
   function _renderTable() {
     var page = AppStore.get('page');
+    var pageSize = _getPageSize();
     var sorted = _sortFiltered(_filtered);
-    var start = page * PAGE_SIZE;
-    var end = Math.min(start + PAGE_SIZE, sorted.length);
+    var start = page * pageSize;
+    var end = Math.min(start + pageSize, sorted.length);
 
     if (sorted.length === 0) return _renderEmptyState();
 
@@ -358,6 +417,7 @@ window.ComerciosComponent = (() => {
         '<div class="com-table__th com-table__th--icon"></div>' +
         '<div class="com-table__th">COMERCIO</div>' +
         '<div class="com-table__th com-table__th--loc">LOCALIDAD</div>' +
+        '<div class="com-table__th com-table__th--address">DIRECCION</div>' +
         '<div class="com-table__th com-table__th--cat">CATEGOR\u00cdA</div>' +
         '<div class="com-table__th com-table__th--actions"></div>' +
       '</div>';
@@ -365,9 +425,12 @@ window.ComerciosComponent = (() => {
     for (var i = start; i < end; i++) {
       var idx = sorted[i];
       var rec = RAW.d[idx];
-      var name = rec[0];
-      var locId = rec[1];
-      var catIdx = rec[2];
+      var commerce = _parseCommerceRecord(rec);
+      var name = commerce.name;
+      var locId = commerce.locId;
+      var catIdx = commerce.catIdx;
+      var address = commerce.address;
+      var addressPreview = _buildAddressPreview(address);
       var locName = RAW.l[locId] || '';
       var catName = RAW.c[catIdx] || '';
       var catIcon = CAT_ICONS[catIdx] || '';
@@ -375,12 +438,13 @@ window.ComerciosComponent = (() => {
       var rubroIdx = RAW.r[catIdx];
       var rubroName = RUBRO_NAMES[rubroIdx] || '';
       var isFav = AppStore.isFavorite(idx);
-      var mapsQuery = encodeURIComponent(name + ' ' + locName + ' Argentina');
+      var mapsQuery = encodeURIComponent((address ? address + ' ' : name + ' ') + locName + ' Argentina');
 
       html += '<div class="com-row' + (isFav ? ' com-row--fav' : '') + '" data-idx="' + idx + '">' +
         '<div class="com-row__icon" style="background:' + catColor + '1A;color:' + catColor + '">' + catIcon + '</div>' +
         '<div class="com-row__main">' +
           '<div class="com-row__name">' + DOM.escapeHtml(name) + '</div>' +
+          (address ? '<div class="com-row__address-mobile">' + DOM.escapeHtml(address) + '</div>' : '') +
           '<div class="com-row__meta-mobile">' +
             '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
             DOM.escapeHtml(locName) +
@@ -390,6 +454,9 @@ window.ComerciosComponent = (() => {
         '<div class="com-row__loc">' +
           '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
           '<span>' + DOM.escapeHtml(locName) + '</span>' +
+        '</div>' +
+        '<div class="com-row__address' + (address ? ' com-row__address--has-value' : ' com-row__address--empty') + '"' + (address ? ' data-full-address="' + DOM.escapeHtml(address) + '" tabindex="0"' : '') + '>' +
+          '<span class="com-row__address-preview">' + DOM.escapeHtml(addressPreview) + '</span>' +
         '</div>' +
         '<div class="com-row__cat">' +
           '<span class="com-row__rubro-badge com-row__rubro-badge--' + rubroIdx + '">' + rubroName + '</span>' +
@@ -416,13 +483,14 @@ window.ComerciosComponent = (() => {
 
   function _renderPagination() {
     var page = AppStore.get('page');
+    var pageSize = _getPageSize();
     var total = _filtered.length;
-    var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    if (total <= PAGE_SIZE) return '';
+    if (total <= pageSize) return '';
 
-    var start = page * PAGE_SIZE + 1;
-    var end = Math.min((page + 1) * PAGE_SIZE, total);
+    var start = page * pageSize + 1;
+    var end = Math.min((page + 1) * pageSize, total);
 
     var maxVisible = 5;
     var startPage = Math.max(0, Math.min(page - 2, totalPages - maxVisible));
@@ -489,7 +557,7 @@ window.ComerciosComponent = (() => {
     _filtered = _applyFilters();
     AppStore.set('filtered', _filtered);
 
-    var totalPages = Math.max(1, Math.ceil(_filtered.length / PAGE_SIZE));
+    var totalPages = Math.max(1, Math.ceil(_filtered.length / _getPageSize()));
     var page = AppStore.get('page');
     if (page >= totalPages) { AppStore.set('page', 0); page = 0; }
 
@@ -722,6 +790,14 @@ window.ComerciosComponent = (() => {
           _renderAll(); _bindEvents();
           break;
 
+        case 'set-page-size':
+          var newPageSize = parseInt(value, 10);
+          if (PAGE_SIZE_OPTIONS.indexOf(newPageSize) === -1) break;
+          AppStore.set('pageSize', newPageSize);
+          AppStore.set('page', 0);
+          _renderAll(); _bindEvents(); _scrollToResults();
+          break;
+
         case 'clear-all':
           AppStore.set('search', ''); AppStore.set('rubro', -1);
           AppStore.set('loc', -1); AppStore.set('cat', -1);
@@ -765,7 +841,7 @@ window.ComerciosComponent = (() => {
           break;
 
         case 'page-next':
-          var maxPg = Math.ceil(_filtered.length / PAGE_SIZE) - 1;
+          var maxPg = Math.ceil(_filtered.length / _getPageSize()) - 1;
           AppStore.set('page', Math.min(maxPg, AppStore.get('page') + 1));
           _renderAll(); _bindEvents(); _scrollToResults();
           break;
@@ -779,6 +855,15 @@ window.ComerciosComponent = (() => {
       if (el.tagName !== 'A') e.preventDefault();
     });
     _cleanups.push(unsub);
+
+    var unsubChange = DOM.delegate(_container, '[data-action="set-page-size"]', 'change', function (_e, el) {
+      var newPageSize = parseInt(el.value, 10);
+      if (PAGE_SIZE_OPTIONS.indexOf(newPageSize) === -1) return;
+      AppStore.set('pageSize', newPageSize);
+      AppStore.set('page', 0);
+      _renderAll(); _bindEvents(); _scrollToResults();
+    });
+    _cleanups.push(unsubChange);
   }
 
   function _unbindEvents() {
@@ -807,8 +892,9 @@ window.ComerciosComponent = (() => {
 
     // Find which page this commerce is on in current filtered results
     var page = -1;
+    var pageSize = _getPageSize();
     for (var i = 0; i < _filtered.length; i++) {
-      if (_filtered[i] === hl) { page = Math.floor(i / PAGE_SIZE); break; }
+      if (_filtered[i] === hl) { page = Math.floor(i / pageSize); break; }
     }
     if (page !== -1 && page !== AppStore.get('page')) {
       AppStore.set('page', page);
@@ -857,6 +943,9 @@ window.ComerciosComponent = (() => {
     AppStore.set('loc', _pendingLoc !== -1 ? _pendingLoc : -1);
     AppStore.set('cat', -1);
     AppStore.set('page', 0);
+    if (PAGE_SIZE_OPTIONS.indexOf(AppStore.get('pageSize')) === -1) {
+      AppStore.set('pageSize', DEFAULT_PAGE_SIZE);
+    }
     AppStore.set('showFavoritesOnly', false);
     AppStore.set('sort', 'relevance');
     _locDdOpen = false; _catDdOpen = false; _sortDdOpen = false;

@@ -23,6 +23,7 @@ window.AppStore = (() => {
     loc: -1,
     cat: -1,
     page: 0,
+    pageSize: 20,
     view: 'normal',
     filtered: [],
     showFavoritesOnly: false,
@@ -55,6 +56,7 @@ window.AppStore = (() => {
     'favorites',
     'recentSearches',
     'visitedLocations',
+    'pageSize',
     'expenses',
     'settings',
     'monthlyBudget'
